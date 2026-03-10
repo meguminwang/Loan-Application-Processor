@@ -119,6 +119,6 @@ bash simulate_disbursement.sh <application_id>   # Test against existing applica
 
 ## Tech Stack
 
-- **TypeScript** + **Express** — typed, explicit, no magic
-- **Prisma** + **SQLite** — type-safe ORM, zero-config database
+- **TypeScript** + **Express**
+- **Prisma** + **SQLite**
 - **Typed Error Classes** — `InvalidStateTransitionError`, `DuplicateApplicationError`, `WebhookReplayError`
