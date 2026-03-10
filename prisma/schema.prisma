@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Application {
+  id                       String   @id @default(uuid())
+  applicantName            String
+  email                    String
+  loanAmount               Float
+  statedMonthlyIncome      Float
+  employmentStatus         String   // "employed" | "self-employed" | "unemployed"
+  documentedMonthlyIncome  Float?
+  bankEndingBalance        Float?
+  bankHasOverdrafts        Boolean?
+  bankHasConsistentDeposits Boolean?
+  monthlyWithdrawals       Float?
+  monthlyDeposits          Float?
+
+  // Scoring results
+  score                    Float?
+  scoreBreakdown           String?  // JSON string of per-factor scores
+
+  // State machine
+  status                   String   @default("submitted") // ApplicationStatus enum enforced in code
+  approvedLoanAmount       Float?   // For partially_approved: reduced amount
+
+  // Duplicate detection
+  deduplicationKey         String   // email + loanAmount hash
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  // Disbursement tracking
+  retryCount               Int      @default(0)
+  disbursementQueuedAt     DateTime?
+
+  auditLogs                AuditLog[]
+  webhookEvents            WebhookEvent[]
+
+  @@index([email, loanAmount, createdAt])
+  @@index([status])
+  @@index([deduplicationKey, createdAt])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  action        String   // e.g., "state_transition", "webhook_received", "retry_attempt"
+  fromStatus    String?
+  toStatus      String?
+  metadata      String?  // JSON string for extra context (retry_id, transaction_id, reviewer note, etc.)
+  createdAt     DateTime @default(now())
+
+  @@index([applicationId])
+}
+
+model WebhookEvent {
+  id            String   @id @default(uuid())
+  transactionId String   @unique // For idempotency: same txn_id = already processed
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  status        String   // "success" | "failed"
+  timestamp     DateTime
+  processedAt   DateTime @default(now())
+
+  @@index([applicationId])
+}
